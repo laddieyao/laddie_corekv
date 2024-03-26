@@ -33,11 +33,12 @@ Key differences:
 package utils
 
 import (
-	"github.com/pkg/errors"
 	"log"
 	"math"
 	"sync/atomic"
 	_ "unsafe"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -453,6 +454,7 @@ func (s *SkipListIterator) Key() []byte {
 // Value returns value.
 func (s *SkipListIterator) Value() ValueStruct {
 	//implement me here
+	return nil
 }
 
 // ValueUint64 returns the uint64 value of the current node.
@@ -482,7 +484,7 @@ func (s *SkipListIterator) SeekForPrev(target []byte) {
 	//implement me here
 }
 
-//定位到链表的第一个节点
+// 定位到链表的第一个节点
 func (s *SkipListIterator) SeekToFirst() {
 	//implement me here
 }
@@ -502,6 +504,7 @@ type UniIterator struct {
 }
 
 // FastRand is a fast thread local random function.
+//
 //go:linkname FastRand runtime.fastrand
 func FastRand() uint32
 
