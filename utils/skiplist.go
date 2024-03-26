@@ -33,8 +33,10 @@ Key differences:
 package utils
 
 import (
+	"fmt"
 	"log"
 	"math"
+	"strings"
 	"sync/atomic"
 	_ "unsafe"
 
@@ -162,6 +164,12 @@ func (s *node) casNextOffset(h int, old, val uint32) bool {
 //	AssertTrue(n != s.head)
 //	return n != nil && CompareKeys(key, n.key) > 0
 //}
+
+// getVs return ValueStruct stored in node
+func (n *node) getVs(arena *Arena) ValueStruct {
+	valOffset, valSize := n.getValueOffset()
+	return arena.getVal(valOffset, valSize)
+}
 
 func (s *Skiplist) randomHeight() int {
 	h := 1
@@ -416,6 +424,59 @@ func (s *Skiplist) NewSkipListIterator() Iterator {
 // arena.
 func (s *Skiplist) MemSize() int64 { return s.arena.size() }
 
+// Draw plot Skiplist, align represents align the same node in different level
+func (s *Skiplist) Draw(align bool) {
+	reverseTree := make([][]string, s.getHeight())
+	head := s.getHead()
+	for level := int(s.getHeight()) - 1; level >= 0; level-- {
+		next := head
+		for {
+			var nodeStr string
+			next = s.getNext(next, level)
+			if next != nil {
+				key := next.key(s.arena)
+				vs := next.getVs(s.arena)
+				nodeStr = fmt.Sprintf("%s(%s)", key, vs.Value)
+			} else {
+				break
+			}
+			reverseTree[level] = append(reverseTree[level], nodeStr)
+		}
+	}
+
+	// align
+	if align && s.getHeight() > 1 {
+		baseFloor := reverseTree[0]
+		for level := 1; level < int(s.getHeight()); level++ {
+			pos := 0
+			for _, ele := range baseFloor {
+				if pos == len(reverseTree[level]) {
+					break
+				}
+				if ele != reverseTree[level][pos] {
+					newStr := fmt.Sprintf(strings.Repeat("-", len(ele)))
+					reverseTree[level] = append(reverseTree[level][:pos+1], reverseTree[level][pos:]...)
+					reverseTree[level][pos] = newStr
+				}
+				pos++
+			}
+		}
+	}
+
+	// plot
+	for level := int(s.getHeight()) - 1; level >= 0; level-- {
+		fmt.Printf("%d: ", level)
+		for pos, ele := range reverseTree[level] {
+			if pos == len(reverseTree[level])-1 {
+				fmt.Printf("%s  ", ele)
+			} else {
+				fmt.Printf("%s->", ele)
+			}
+		}
+		fmt.Println()
+	}
+}
+
 // Iterator is an iterator over skiplist object. For new objects, you just
 // need to initialize Iterator.list.
 type SkipListIterator struct {
@@ -449,12 +510,14 @@ func (s *SkipListIterator) Valid() bool { return s.n != nil }
 // Key returns the key at the current position.
 func (s *SkipListIterator) Key() []byte {
 	//implement me here
+	return s.list.arena.getKey(s.n.keyOffset, s.n.keySize)
 }
 
 // Value returns value.
 func (s *SkipListIterator) Value() ValueStruct {
 	//implement me here
-	return nil
+	valOffset, valSize := s.n.getValueOffset()
+	return s.list.arena.getVal(valOffset, valSize)
 }
 
 // ValueUint64 returns the uint64 value of the current node.
@@ -477,16 +540,19 @@ func (s *SkipListIterator) Prev() {
 // 找到 >= target 的第一个节点
 func (s *SkipListIterator) Seek(target []byte) {
 	//implement me here
+	s.n, _ = s.list.findNear(target, false, true) // find >=.
 }
 
 // 找到 <= target 的第一个节点
 func (s *SkipListIterator) SeekForPrev(target []byte) {
 	//implement me here
+	s.n, _ = s.list.findNear(target, true, true) // find <=.
 }
 
 // 定位到链表的第一个节点
 func (s *SkipListIterator) SeekToFirst() {
 	//implement me here
+	s.n = s.list.getNext(s.list.getHead(), 0)
 }
 
 // SeekToLast seeks position at the last entry in list.
